@@ -2,14 +2,13 @@ try:
     import streamlit as st
     from PIL import Image
     import random
-    from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
     import cv2
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
     from tensorflow.keras.preprocessing.image import img_to_array
 except ModuleNotFoundError as e:
-    print("Required module not found. Please ensure Streamlit, Pillow, OpenCV, TensorFlow, and streamlit-webrtc are installed.")
+    print("Required module not found. Please ensure Streamlit, Pillow, OpenCV, and TensorFlow are installed.")
     raise e
 
 # Load pre-trained model (example using a MobileNetV2 model fine-tuned for defect detection)
@@ -65,62 +64,30 @@ def classify_defect(image, explanation):
         st.error("Error during defect classification: " + str(e))
         return "Error", None, "Unable to classify the defect."
 
-# Video transformer for capturing camera input
-class VideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        self.frame = None
-
-    def transform(self, frame):
-        self.frame = frame
-        img = frame.to_ndarray(format="bgr24")
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        return img
-
 # Streamlit UI
 try:
     st.title("Building Defect Detection App")
-    st.write("Upload an image or take a photo of a building element, and the app will detect any defects, categorize severity, and provide recommendations.")
+    st.write("Upload an image of a building element, and the app will detect any defects, categorize severity, and provide recommendations.")
 
-    # Option to upload image or use camera
-    option = st.radio("Choose input method:", ("Upload Image", "Take Photo"))
+    # Option to upload image
+    uploaded_image = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
 
     explanation = st.text_area("Provide a brief explanation of the photo (optional):")
 
-    if option == "Upload Image":
-        uploaded_image = st.file_uploader("Upload Image", type=["jpg", "png", "jpeg"])
-        if uploaded_image is not None:
-            try:
-                image = Image.open(uploaded_image)
-                st.image(image, caption="Uploaded Image", use_column_width=True)
-                st.write("Processing...")
-                defect, severity, recommendation = classify_defect(image, explanation)
-                if defect == "No Defect":
-                    st.success("No defects detected.")
-                else:
-                    st.error(f"Defect Detected: {defect}")
-                    st.warning(f"Severity: {severity}")
-                    st.info(f"Recommendation: {recommendation}")
-            except Exception as e:
-                st.error("Failed to process the uploaded image. Please upload a valid image.")
-
-    elif option == "Take Photo":
-        webrtc_ctx = webrtc_streamer(key="camera", video_transformer_factory=VideoTransformer)
-        if webrtc_ctx and webrtc_ctx.video_transformer:
-            if webrtc_ctx.video_transformer.frame is not None:
-                img = webrtc_ctx.video_transformer.frame.to_ndarray(format="bgr24")
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                image = Image.fromarray(img)
-                st.image(image, caption="Captured Photo", use_column_width=True)
-                st.write("Processing...")
-                defect, severity, recommendation = classify_defect(image, explanation)
-                if defect == "No Defect":
-                    st.success("No defects detected.")
-                else:
-                    st.error(f"Defect Detected: {defect}")
-                    st.warning(f"Severity: {severity}")
-                    st.info(f"Recommendation: {recommendation}")
+    if uploaded_image is not None:
+        try:
+            image = Image.open(uploaded_image)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+            st.write("Processing...")
+            defect, severity, recommendation = classify_defect(image, explanation)
+            if defect == "No Defect":
+                st.success("No defects detected.")
             else:
-                st.warning("No frame captured. Please try again.")
+                st.error(f"Defect Detected: {defect}")
+                st.warning(f"Severity: {severity}")
+                st.info(f"Recommendation: {recommendation}")
+        except Exception as e:
+            st.error("Failed to process the uploaded image. Please upload a valid image.")
 
     # Admin Section Placeholder
     st.sidebar.title("Admin Section")
